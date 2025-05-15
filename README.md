@@ -23,7 +23,7 @@ A scalable and modular Node.js backend built with Express, designed for RESTful 
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/your-node-backend.git
+git clone https://github.com/HamzaDev045/ecommerce-backend.git
 cd your-node-backend
 
 # Install dependencies
