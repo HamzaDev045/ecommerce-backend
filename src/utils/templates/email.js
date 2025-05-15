@@ -38,7 +38,7 @@ export const generateEmailVerificationTemplate = (token) => {
                                             </tbody>
                                         </table>
                                         <p style="margin-top:0;margin-bottom:10px">If you don’t verify your account within 3 hours, the link will expire. You can request a new verification link by visiting: <a style=" color:#723BFF !important" href="${config.frontEndUrl}auth/verify-email-resend" target="_blank">${config.frontEndUrl}verify-email</a></p>
-                                        <p style="margin-top:0;margin-bottom:10px">Thanks,<br>The Onu Team</p>
+                                        <p style="margin-top:0;margin-bottom:10px">Thanks,<br>The Shopo Team</p>
                                     </td>
                                 </tr>
                             </tbody>
@@ -75,7 +75,6 @@ export const generateForgotEmailTemplate = (token) => {
             <tbody>
                 <tr>
                     <td align="center" style="padding:16px">
-                        <img src="https://onu.ai/wp-content/uploads/2024/03/onu-logo-blue-300-min.png" alt="OnuTeam" width="100" style="border-style:none" class="CToWUd" data-bit="iit">
                         <h2 style="margin-top:8px!important;margin-bottom:0;font-size:24px;font-weight:400!important;line-height:1.25!important;">Reset your password</h2>
                     </td>
                 </tr>
@@ -86,20 +85,20 @@ export const generateForgotEmailTemplate = (token) => {
                                 <tr>
                                     <td style="padding:24px">
                                         <h3 style="    text-align: center;
-                                        font-size:20px;font-weight:600;line-height:1.25!important; color :#24292f !important">Onu password reset</h3>
+                                        font-size:20px;font-weight:600;line-height:1.25!important; color :#24292f !important">shopo password reset</h3>
                                         <p style="margin-top:0;margin-bottom:10px">We've noticed that you need to reset your Onu account password. No worries, we've got you covered!</p>
                                         <p style="margin-top:0;margin-bottom:10px">Simply click the button below to reset your password</p>
                                         <table border="0" cellspacing="0" cellpadding="0" align="center" style="margin-bottom: 33px; margin-top:20px;">
                                             <tbody>
                                                 <tr>
                                                     <td align="center">
-                                                        <a href="${config.frontEndUrl}auth/reset-password?token=${token}" style="background-color:#07131C;color:#fff;text-decoration:none !important;display:inline-block;font-size:inherit;font-weight:500;line-height:1.5;white-space:nowrap;vertical-align:middle;border-radius:.5em;padding:.75em 1.5em;" target="_blank">Reset your password</a>
+                                                        <p style="background-color:#07131C;color:#fff;text-decoration:none !important;display:inline-block;font-size:inherit;font-weight:500;line-height:1.5;white-space:nowrap;vertical-align:middle;border-radius:.5em;padding:.75em 1.5em;" target="_blank">${token}</p>
                                                     </td>
                                                 </tr>
                                             </tbody>
                                         </table>
-                                        <p style="margin-top:0;margin-bottom:10px">If you don’t forgot your password within 3 hours, the link will expire. You can request a new reset link by visiting: <a style=" color:#723BFF !important" href="${config.frontEndUrl}auth/password-reset-resend-email" target="_blank">${config.frontEndUrl}auth/password-reset-resend-email</a></p>
-                                        <p style="margin-top:0;margin-bottom:10px">Thanks,<br>The Onu Team</p>
+                                        <p style="margin-top:0;margin-bottom:10px">If you don’t forgot your password within 3 hours, the link will expire.</p>
+                                        <p style="margin-top:0;margin-bottom:10px">Thanks,<br>The Shopo Team</p>
                                     </td>
                                 </tr>
                             </tbody>
@@ -112,7 +111,7 @@ export const generateForgotEmailTemplate = (token) => {
             <tbody>
                 <tr>
                     <td style="padding:16px">
-                        <p style="margin-top:0;margin-bottom:10px;color:#6a737d!important;font-size:14px!important;">You're receiving this email because a verification for your Onu account was requested.</p>
+                        <p style="margin-top:0;margin-bottom:10px;color:#6a737d!important;font-size:14px!important;">You're receiving this email because a verification for your shopo account was requested.</p>
                     </td>
                 </tr>
             </tbody>
@@ -136,7 +135,6 @@ export const generateTeamEmailTemplate = (token) => {
             <tbody>
                 <tr>
                     <td align="center" style="padding:16px">
-                        <img src="https://onu.ai/wp-content/uploads/2024/03/onu-logo-blue-300-min.png" alt="OnuTeam" width="100" style="border-style:none" class="CToWUd" data-bit="iit">
                         <h2 style="margin-top:8px!important;margin-bottom:0;font-size:24px;font-weight:400!important;line-height:1.25!important;">Accept your invitaiton!</h2>
                     </td>
                 </tr>
@@ -160,7 +158,7 @@ export const generateTeamEmailTemplate = (token) => {
                                             </tbody>
                                         </table>
                                         <p style="margin-top:0;margin-bottom:10px">If you fail to verify your account within 3 hours, the link will expire. Please reach out to your company administrator for assistance. </p>
-                                        <p style="margin-top:0;margin-bottom:10px">Thanks,<br>The Onu Team</p>
+                                        <p style="margin-top:0;margin-bottom:10px">Thanks,<br>The Shopo Team</p>
                                     </td>
                                 </tr>
                             </tbody>

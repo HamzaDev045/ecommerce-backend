@@ -100,7 +100,7 @@ export const sendVerificationEmail = async (sender, resetToken = "reset key...",
         
         const mailOptions = {
             from: {
-                name: 'Onu Team',
+                name: 'Your Online Shop',
                 address: config.emailUser
             },
             to: {

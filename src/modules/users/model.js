@@ -5,13 +5,7 @@ import { apiError } from '../../utils/index.js'
 
 export const userSchema = mongoose.Schema(
   {
-    // fullName: {
-    //   type: String,
-    //   required: true,
-    //   trim: true,
-    //   minlength: 2,
-    //   maxlength: 50,
-    // },
+   
     username: {
       type: String,
       required: true,
@@ -28,11 +22,7 @@ export const userSchema = mongoose.Schema(
       required: true,
       minlength: 8
     },
-    companyId: {
-      type: mongoose.Types.ObjectId,
-      ref: 'Company',
-      default: null
-    },
+   
     roleId:
     {
       type: mongoose.Types.ObjectId,
@@ -50,10 +40,10 @@ export const userSchema = mongoose.Schema(
         default: false
       }
     },
-    accountType: {
+    role: {
       type: String,
-      enum: ["user", "owner"],
-      default: "owner",
+      enum: ["user", "admin"],
+      default: "user",
       lowercase: true
     },
     otp: {
@@ -66,15 +56,14 @@ export const userSchema = mongoose.Schema(
       type: Boolean,
       default: true
     },
+     posts: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "post",
+      },
+    ],
     resetToken: { type: String, default: "" },
     resetTokenExpiry: { type: Date, default: null },
-    accessSharedBy: {
-      type: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
-      }],
-      default: []
-    }
   },
   { timestamps: true },
 )

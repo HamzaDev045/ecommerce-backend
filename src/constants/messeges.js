@@ -26,9 +26,10 @@ const Messages = {
   ALREADY_USED_PASSWORD: "Sorry, but you have already used this password. Please choose a new one.",
   NOT_AUTORIZED: "Oops! You are not authorized to perform this action. Please contact support for assistance.",
   EMAIL_SENT: "Email successfully send in your account",
+  USER_REGINSTERED: "User registered successfully",
   EMAIL_NOT_VERIFIED: 'Email not Verified',
   VERIFICATION_EMAIL_SUBJECT: 'Please verify your account',
-  VERIFICATION_FORGOT_SUBJECT: 'Please reset your account',
+  VERIFICATION_FORGOT_SUBJECT: 'Please verify your account',
   VERIFICATION_TEAM_SUBJECT: "Please accept your invitaion",
   INVALID_VERIFICATION_TOKEN: 'Invalid verification token',
   VARIFICATION_TOKEN_EXPIRE: 'Verification token has expired',
@@ -37,6 +38,7 @@ const Messages = {
   TOKEN_VERIFY_SUCCESS: 'Token verify successfull',
   TOKEN_NOT_VERIFIED: 'Token Invalid',
   TOKEN_EXPIRED: 'Token is expired',
+  OTP_VERIFIED: 'OTP verified successfully',
   PASSWORD_RESET_SUCCESS: 'Password reset successfully! Please Login in',
   AUTHORIZATION_INVALID: 'Authorization Token not provided!',
   AUTHORIZATION_TOKEN_NOT_FOUND: 'Authentication token not provided!',
@@ -72,7 +74,8 @@ const Messages = {
   COMPANY_USER_EMAIL_VERIFICATION_FAILED: 'Email Verificaiton Failed Please contact your company owner or administrator.',
   EMAIL_VERIFICATION_FAILED: 'Account email verification failed',
   STIPE_CUSTOMER_UPDATE_SUCCESS: 'stripe customer update success',
-  COULD_NOT_UPDATE_CUSTOMER_DETAILS: 'could not update customer details'
+  COULD_NOT_UPDATE_CUSTOMER_DETAILS: 'could not update customer details',
+  ITEM_ADDED_SUCCESSFULLY: 'Item added successfully',
 };
 
 export default Messages

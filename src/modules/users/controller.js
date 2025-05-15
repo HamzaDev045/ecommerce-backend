@@ -35,27 +35,18 @@ export const signUp = async (
 ) => {
   try {
 
-    // console.log('req.body', req.body)
-
     const validationResult = validateSignUpInputs(req.body)
 
     if (validationResult?.error)
       return next(apiError.badRequest(validationResult?.msg, 'signUp'))
 
-    const resetToken = nanoid(100);
-    const resetTokenExpiry = Date.now() + 5 * 60 * 1000; // 5 min expiry time
-
-    const user = await createUser({ ...req.body, resetTokenExpiry, resetToken }, next)
+    const user = await createUser({ ...req.body}, next)
 
     if (!user) throw next(apiError.badRequest(MESSEGES.USER_CREATION_FAILED, 'signup'))
 
-
-      console.log()
-    await sendVerificationEmail(user, resetToken, "accountVerification", next)
-
     return res
       .status(201)
-      .send({ isSuccess: true, message: MESSEGES.EMAIL_SENT, data: { email: req.body?.email } })
+      .send({ isSuccess: true, message: MESSEGES.USER_REGINSTERED, data: { email: req.body?.email } })
 
   } catch (error) {
     console.log(error)
@@ -64,30 +55,6 @@ export const signUp = async (
 }
 
 
-export const verifyEmail = async (req, res, next) => {
-  try {
-    const token = req.params.token;
-    const user = await getUserByConditions({ resetToken: token, resetTokenExpiry: { $gt: Date.now() } });
-
-    if (!user) {
-      return next(
-        apiError.badRequest( MESSEGES.EMAIL_VERIFICATION_FAILED, 'resetTokenVerify'),
-      )
-    }
-    user.accountVerificationMethods.isEmailVerified = true;
-    user.isAccountEnable = true
-
-    user.resetToken = undefined;
-    user.resetTokenExpiry = undefined;
-
-    await user.save();
-
-    res.json({ isSuccess: true, message: MESSEGES.VERIFICATION_SUCCESSFULL });
-  } catch (error) {
-    console.log(error)
-    return next(apiError.internal(error, 'verifyToken'))
-  }
-};
 
 export const signIn = async (
   req,
@@ -106,7 +73,6 @@ export const signIn = async (
 
     const existingUser = await getUserByConditions({ email })
 
-    // let existingU/ser = await getUserByCompanyDetail({ $or: [{ email: username }, { username }] }, '-__v', true)
 
     if (!existingUser) {
       return next(
@@ -114,34 +80,26 @@ export const signIn = async (
       )
     }
 
-    if (!existingUser?.accountVerificationMethods?.isEmailVerified)
-      return next(
-        apiError.badRequest(MESSEGES.EMAIL_NOT_VERIFIED, 'signin'),
-      )
+    // if (!existingUser?.accountVerificationMethods?.isEmailVerified)
+    //   return next(
+    //     apiError.badRequest(MESSEGES.EMAIL_NOT_VERIFIED, 'signin'),
+    //   )
 
-    if (!existingUser?.isAccountEnable)
-      return next(
-        apiError.badRequest(MESSEGES.ACCOUNT_NOT_ACTIVE, 'signin'),
-      )
+    // if (!existingUser?.isAccountEnable)
+    //   return next(
+    //     apiError.badRequest(MESSEGES.ACCOUNT_NOT_ACTIVE, 'signin'),
+    //   )
 
     const match = await existingUser?.checkPassword(password)
     if (!match) return next(
       apiError.badRequest(MESSEGES.PASSWORD_INVALID, 'signin'),
     )
-
-    // console.log('existingUser ___________________________!')
-    // existingUser = existingUser.toObject({ getters: true });
-    // console.log('existingUser____________________________123')
-
     
     const userData = {
       _id: existingUser._id,
       username: existingUser.username,
       email: existingUser.email,
-      accountType: existingUser.accountType,
-      roleId: existingUser.roleId,
-      isAccountEnable: existingUser.isAccountEnable,
-      accountVerificationMethods: existingUser.accountVerificationMethods,
+      role: existingUser.role,
       createdAt: existingUser.createdAt,
       updatedAt: existingUser.updatedAt
     };
@@ -155,44 +113,6 @@ export const signIn = async (
     return res
       .status(201)
       .send({ isSucess: true, message: MESSEGES.SIGNIN_SUCCESSFULL, token, refreshToken, data: userData })
-  } catch (error) {
-    console.log(error)
-    return next(apiError.internal(error, 'signup'))
-  }
-}
-
-export const resendEmailVerify = async (
-  req,
-  res,
-  next,
-) => {
-  try {
-
-    const validationResult = validateResendEmailVerify(req.body)
-
-    if (validationResult?.error)
-      return next(apiError.badRequest(validationResult?.msg, 'signUp'))
-
-    const resetToken = nanoid(100);
-    const resetTokenExpiry = Date.now() + 5 * 60 * 1000; // 5 min expiry time
-
-    const user = await createUser({ ...req.body, username, resetTokenExpiry, resetToken }, next)
-
-    if (!user) throw next(apiError.badRequest(MESSEGES.USER_CREATION_FAILED, 'signup'))
-
-    await sendVerificationEmail(user, resetToken, "accountVerification", next)
-
-    const company = await createCompany({
-      name: '',
-    }, next)
-
-    await updateUser({ companyId: company._id, userId: user._id }, next)
-
-
-    return res
-      .status(201)
-      .send({ isSuccess: true, message: MESSEGES.EMAIL_SENT, data: { email: req.body?.email } })
-
   } catch (error) {
     console.log(error)
     return next(apiError.internal(error, 'signup'))
@@ -238,15 +158,13 @@ export const verifyOTP = async (req, res, next) => {
       return next(apiError.badRequest(validationResult.msg, 'verifyResetToken'));
     }
 
-    const { email, otp } = req.body; 
-    // Find user by both email and OTP
-    const user = await getUserByConditions({ email, otp });
+    const {  otp } = req.body; 
+    const user = await getUserByConditions({otp});
     if (!user) {
       return next(
         apiError.badRequest(MESSEGES.INVALID_OTP, 'verifyResetToken')
       );
     }
-
     // Check if OTP has expired
     if (!user.otpExpiry || user.otpExpiry < Date.now()) {
       return next(
@@ -254,8 +172,6 @@ export const verifyOTP = async (req, res, next) => {
       );
     }
 
-
-  
     await updateUser({ 
       userId: user._id, 
   
@@ -266,7 +182,7 @@ export const verifyOTP = async (req, res, next) => {
     return res.status(200).json({ 
       isSuccess: true, 
       message: MESSEGES.OTP_VERIFIED, 
-      data: { resetToken } 
+      data: { email: user.email }
     });
     
   } catch (error) {
@@ -389,7 +305,7 @@ export const emailResend = async (req, res, next) => {
     if (validationResult.error)
       return next(apiError.badRequest(validationResult?.msg, 'emailVerificationResend'))
 
-    const user = await getUserByConditions({ email })
+    const user = await getUserByConditions({email})
 
     if (!user) {
       return next(
@@ -406,17 +322,6 @@ export const emailResend = async (req, res, next) => {
 
     user.save()
 
-    let templateType='accountVerification';
-
-    if (type === 'reset-password') {
-      templateType = 'accountForgotPassword'
-    } else if (type === 'email-verify') {
-      templateType = 'accountVerification'
-
-    }
-
-    await sendVerificationEmail(user, resetToken, templateType, next)
-
     return res
       .status(201)
       .send({ isSuccess: true, message: MESSEGES.EMAIL_VERIFICATION_LINK })
@@ -431,7 +336,6 @@ export const emailResend = async (req, res, next) => {
 
 export default {
   signUp,
-  verifyEmail,
   signIn,
   forgotPassword,
   resetPassword,

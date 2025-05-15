@@ -39,7 +39,6 @@ export const validateSignInInputs = (data) => {
 
 export const validateOtpVerification=(data) => {
   const Schema = Joi.object({
-    email: Joi.string().email().required(),
     otp: Joi.string().required(),
   });
   const result = Schema.validate(data)

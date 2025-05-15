@@ -33,7 +33,6 @@ const isAuthorized = async (req, res, next) => {
         }
 
         req.userId = new mongoose.Types.ObjectId(user?._id)
-        req.companyId = new mongoose.Types.ObjectId(user.companyId)
         req.user = user
 
         next()
