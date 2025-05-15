@@ -18,15 +18,15 @@ export const createItemController = async (req, res, next) => {
         message: 'Only admin users can access this endpoint'
       });
     }
-    // if (!title || !postImg) {
-    //   return next(
-    //     apiError.badRequest(MESSEGES.NOT_ALL_REQUIRED_FIELDS_MESSAGE, 'createPostController'),
-    //   )
-    // }
+    if (!title || !postImg) {
+      return next(
+        apiError.badRequest(MESSEGES.NOT_ALL_REQUIRED_FIELDS_MESSAGE, 'createPostController'),
+      )
+    }
 
-    // const cloudImg = await cloudinary.uploader.upload(postImg, {
-    //   folder: "postImg",
-    // });
+    const cloudImg = await cloudinary.uploader.upload(postImg, {
+      folder: "postImg",
+    });
 
     const owner = req.userId;
 
@@ -34,10 +34,10 @@ export const createItemController = async (req, res, next) => {
       ...req.body,
       owner,
       title,
-    //   image: {
-    //     publicId: cloudImg.public_id,
-    //     url: cloudImg.secure_url,
-    //   },
+      image: {
+        publicId: cloudImg.public_id,
+        url: cloudImg.secure_url,
+      },
     });
     user.posts.push(post._id);
     await user.save();
