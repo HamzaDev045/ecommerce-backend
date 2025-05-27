@@ -1,7 +1,8 @@
 import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
-// import routes from './routes';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 import { connect } from './config/index.js'; // database connectivity
 import routes from './routes/index.js'
 import { apiError, apiErrorHandler } from './utils/index.js'
@@ -25,13 +26,32 @@ app.use(compressionMiddleware())
 app.use(cors());
 routes(app)
 
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log('A warehouse client connected');
+
+  socket.on('disconnect', () => {
+    console.log('A warehouse client disconnected');
+  });
+});
+
+// Make io accessible throughout the application
+app.set('io', io);
+
 app.use(({ next }) => next(new apiError(404, 'Not found', 'server')))
 app.use(apiErrorHandler)
 
-async function connectServer() {
-    try {
+async function connectServer() {    try {
         connect();
-        app.listen(port, () => {
+        httpServer.listen(port, () => {
             console.log(`Server is running on port ${port}`);
         });
 

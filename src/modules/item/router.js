@@ -1,14 +1,18 @@
 import { Router } from 'express'
 import controller from './controller.js'
-import { isAuthorized } from '../../middleware/index.js'
-
+import { isAuthorized, isAdmin } from '../../middleware/index.js'
 
 const router = Router()
 
-router
-.post('/create-new-item', isAuthorized,controller.createItemController)
-.get('/get-items-admin', isAuthorized,controller.getItemController)
+router  // Admin routes
+  .post('/create-new-item', isAuthorized, isAdmin, controller.createItemController)
+  .get('/get-items-admin', isAuthorized, isAdmin, controller.getItemController)
+  .get('/orders', isAuthorized, isAdmin, controller.getAllOrders)
+  .put('/orders/:orderId/status', isAuthorized, isAdmin, controller.updateOrderStatus)
 
-
+  // User routes
+  .post('/place-order', isAuthorized, controller.placeOrder)
+  .post('/comment', isAuthorized, controller.addCommentAndRating)
+  .get('/comments/:itemId', isAuthorized, controller.getItemComments)
 
 export default router
