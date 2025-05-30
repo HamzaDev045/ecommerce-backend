@@ -24,7 +24,6 @@ import {
 import { apiError, generateToken, generateRefreshToken,  verifyJwtToken } from '../../utils/index.js'
 import { MESSEGES } from '../../constants/index.js'
 
-import { createCompany } from './companies/service.js'
 import { sendVerificationEmail } from '../../utils/index.js'
 
 
@@ -191,42 +190,6 @@ export const verifyOTP = async (req, res, next) => {
   }
 };
 
-
-export const resetPassword = async (req, res, next) => {
-  try {
-    const token = req.params?.token || ""
-    const validationResult = validateResetPassword({ ...req.body, token })
-    if (validationResult.error)
-      return next(apiError.badRequest(validationResult?.msg, 'forgotPassword'))
-
-    const user = await getUserByConditions({ resetToken: token, resetTokenExpiry: { $gt: Date.now() } });
-
-    if (!user) {
-      return next(
-        apiError.badRequest(MESSEGES.USER_DOES_NOT_EXIST, 'resetTokenVerify'),
-      )
-    }
-
-    await updateUser({ userId: user._id, password: req.body.password })
-
-    user.resetToken = null;
-    user.resetTokenExpiry = null;
-    user.isEmailVerified = true;
-
-    await user.save();
-
-    return res
-      .status(201)
-      .send({ isSuccess: true, message: MESSEGES.PASSWORD_RESET_SUCCESS })
-
-  } catch (error) {
-    console.log(error)
-    return next(apiError.internal(error, 'forgotPassword'))
-  }
-}
-
-
-
 export const changePassword = async (req, res, next) => {
   try {
     const validationResult = validateChangePassword(req.body)
@@ -332,15 +295,45 @@ export const emailResend = async (req, res, next) => {
   }
 }
 
+export const resetPasswordWithOld = async (req, res, next) => {
+  try {
+    const { oldPassword, newPassword, email } = req.body;
 
+    if (!oldPassword || !newPassword || !email) {
+      return next(apiError.badRequest('All fields are required', 'resetPasswordWithOld'));
+    }
+
+    const user = await getUserByConditions({ email });
+    if (!user) {
+      return next(apiError.badRequest(MESSEGES.USER_DOES_NOT_EXIST, 'resetPasswordWithOld'));
+    }
+
+    // Verify old password
+    const match = await user?.checkPassword(oldPassword);
+    if (!match) {
+      return next(apiError.badRequest(MESSEGES.PASSWORD_INVALID, 'resetPasswordWithOld'));
+    }
+
+    // Update password
+    await updateUser({ userId: user._id, password: newPassword });
+
+    return res
+      .status(200)
+      .send({ isSuccess: true, message: MESSEGES.PASSWORD_RESET_SUCCESS });
+
+  } catch (error) {
+    console.log(error);
+    return next(apiError.internal(error, 'resetPasswordWithOld'));
+  }
+}
 
 export default {
   signUp,
   signIn,
   forgotPassword,
-  resetPassword,
   changePassword,
   verifyRefreshToken,
   emailResend,
   verifyOTP,
+  resetPasswordWithOld,
 }

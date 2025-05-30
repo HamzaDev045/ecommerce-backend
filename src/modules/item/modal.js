@@ -19,10 +19,22 @@ const postSchema = mongoose.Schema(
       type: Number,
       default: 0,
     },
-    // Avatar Store in Cloudinary:
-    image: {
+    // Avatar Store in Cloudinary:   
+   images: [{
       publicId: String,
       url: String,
+    }],
+    brand: {
+      type: String,
+      required: true,
+    },
+    lowStockThreshold: {
+      type: Number,
+      default: 10,
+    },
+    isLowStock: {
+      type: Boolean,
+      default: false,
     },
 
     category: {

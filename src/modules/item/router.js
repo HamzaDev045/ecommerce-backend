@@ -7,6 +7,11 @@ const router = Router()
 router  // Admin routes
   .post('/create-new-item', isAuthorized, isAdmin, controller.createItemController)
   .get('/get-items-admin', isAuthorized, isAdmin, controller.getItemController)
+  .get('/admin/products', isAuthorized, isAdmin, controller.getAdminProducts)
+  .get('/admin/low-stock', isAuthorized, isAdmin, controller.getLowStockProducts)
+  .get('/admin/reviews', isAuthorized, isAdmin, controller.getProductReviews)
+  .get('/admin/dashboard', isAuthorized, isAdmin, controller.getDashboardStats)
+  .get('/admin/sales-graph', isAuthorized, isAdmin, controller.getSalesGraph)
   .get('/orders', isAuthorized, isAdmin, controller.getAllOrders)
   .put('/orders/:orderId/status', isAuthorized, isAdmin, controller.updateOrderStatus)
 

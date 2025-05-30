@@ -21,25 +21,9 @@ export const userSchema = mongoose.Schema(
       type: String,
       required: true,
       minlength: 8
-    },
-   
-    roleId:
-    {
-      type: mongoose.Types.ObjectId,
-      ref: 'Roles',
-      default: null
     }
-    ,
-    accountVerificationMethods: {
-      isEmailVerified: {
-        type: Boolean,
-        default: false
-      },
-      isPhoneVerified: {
-        type: Boolean,
-        default: false
-      }
-    },
+    
+  ,
     role: {
       type: String,
       enum: ["user", "admin"],
@@ -48,14 +32,11 @@ export const userSchema = mongoose.Schema(
     },
     otp: {
       type: String},
+
       otpExpiry:{
         type: Date,
         default: null
       },
-    isAccountEnable: {
-      type: Boolean,
-      default: true
-    },
      posts: [
       {
         type: mongoose.Schema.Types.ObjectId,

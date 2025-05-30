@@ -7,10 +7,9 @@ import { apiError } from "../../utils/apiErrorHandler.js";
 import { getUserByConditions } from "../users/services.js";
 
 export const createItemController = async (req, res, next) => {
-  try {
-    const { title, postImg } = req.body;
+  try {    const { title, images, brand, lowStockThreshold } = req.body;
     const email = req?.user?.email;
-      const user = await getUserByConditions({ email });
+    const user = await getUserByConditions({ email });
 
 
     if (user.role === 'user') {
@@ -18,16 +17,23 @@ export const createItemController = async (req, res, next) => {
         status: false,
         message: 'Only admin users can access this endpoint'
       });
-    }
-    if (!title || !postImg) {
+    }    if (!title || !images || !images.length || !brand) {
       return next(
         apiError.badRequest(MESSEGES.NOT_ALL_REQUIRED_FIELDS_MESSAGE, 'createPostController'),
       )
     }
 
-    const cloudImg = await cloudinary.uploader.upload(postImg, {
-      folder: "postImg",
-    });
+    // Upload multiple images
+    const uploadedImages = [];
+    for (const image of images) {
+      const cloudImg = await cloudinary.uploader.upload(image, {
+        folder: "products",
+      });
+      uploadedImages.push({
+        publicId: cloudImg.public_id,
+        url: cloudImg.secure_url,
+      });
+    }
 
     const owner = req.userId;
 
@@ -35,11 +41,11 @@ export const createItemController = async (req, res, next) => {
       ...req.body,
       owner,
       title,
-      image: {
-        publicId: cloudImg.public_id,
-        url: cloudImg.secure_url,
-      },
-    });    user.posts.push(post._id);
+      brand,
+      images: uploadedImages,
+      lowStockThreshold: lowStockThreshold || 10,
+      isLowStock: req.body.quantity <= (lowStockThreshold || 10)
+    });user.posts.push(post._id);
     await user.save();
 
     // Emit socket event for warehouse notification
@@ -340,6 +346,368 @@ export const updateOrderStatus = async (req, res, next) => {
   }
 };
 
+export const getAdminProducts = async (req, res, next) => {
+  try {
+    const adminId = req.userId;
+    const products = await Post.find({ owner: adminId })
+      .select('title description price quantity images brand category isLowStock lowStockThreshold rating totalRatings');
+
+    return res.status(200).json({
+      status: true,
+      data: products
+    });
+  } catch (error) {
+    return next(apiError.internal(error.message, 'getAdminProducts'));
+  }
+};
+
+export const getLowStockProducts = async (req, res, next) => {
+  try {
+    const adminId = req.userId;
+    const products = await Post.find({ 
+      owner: adminId,
+      $expr: {
+        $lte: ["$quantity", "$lowStockThreshold"]
+      }
+    }).select('title quantity lowStockThreshold brand category');
+
+    return res.status(200).json({
+      status: true,
+      data: products
+    });
+  } catch (error) {
+    return next(apiError.internal(error.message, 'getLowStockProducts'));
+  }
+};
+
+export const getAdminDashboardStats = async (req, res, next) => {
+  try {
+    const currentDate = new Date();
+    const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const lastWeek = new Date(currentDate.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    // Get orders for products owned by this admin
+    const adminId = req.userId;
+    const adminProducts = await Post.find({ owner: adminId }).select('_id');
+    const productIds = adminProducts.map(p => p._id);
+
+    // Monthly orders and sales
+    const monthlyOrders = await Order.find({
+      createdAt: { $gte: firstDayOfMonth },
+      'items.item': { $in: productIds }
+    });
+
+    const monthlySales = monthlyOrders.reduce((acc, order) => {
+      const orderTotal = order.items
+        .filter(item => productIds.includes(item.item))
+        .reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      return acc + orderTotal;
+    }, 0);
+
+    // Pending orders count
+    const pendingOrderCount = await Order.countDocuments({
+      status: 'pending',
+      'items.item': { $in: productIds }
+    });
+
+    // Low stock products
+    const lowStockCount = await Post.countDocuments({ 
+      owner: adminId,
+      isLowStock: true 
+    });
+
+    // New reviews in last week
+    const productsWithNewReviews = await Post.aggregate([
+      { $match: { owner: adminId } },
+      { $unwind: '$comments' },
+      { 
+        $match: { 
+          'comments.createdAt': { $gte: lastWeek }
+        }
+      },
+      { $count: 'total' }
+    ]);
+
+    return res.status(200).json({
+      status: true,
+      data: {
+        monthlySales,
+        monthlyOrderCount: monthlyOrders.length,
+        pendingOrders: pendingOrderCount,
+        lowStockItems: lowStockCount,
+        newReviews: productsWithNewReviews[0]?.total || 0
+      }
+    });
+  } catch (error) {
+    return next(apiError.internal(error.message, 'getAdminDashboardStats'));
+  }
+};
+
+export const getAdminSalesGraph = async (req, res, next) => {
+  try {
+    const adminId = req.userId;
+    const currentDate = new Date();
+    const sixMonthsAgo = new Date(currentDate.getFullYear(), currentDate.getMonth() - 5, 1);
+
+    // Get admin's products
+    const adminProducts = await Post.find({ owner: adminId }).select('_id');
+    const productIds = adminProducts.map(p => p._id);
+
+    const salesData = await Order.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: sixMonthsAgo },
+          status: { $in: ['confirmed', 'shipped', 'delivered'] }
+        }
+      },
+      { $unwind: '$items' },
+      {
+        $match: {
+          'items.item': { $in: productIds }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' }
+          },
+          totalSales: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { '_id.year': 1, '_id.month': 1 }
+      }
+    ]);
+
+    // Format data for graph
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const formattedData = salesData.map(item => ({
+      month: monthNames[item._id.month - 1],
+      year: item._id.year,
+      sales: item.totalSales,
+      orders: item.count
+    }));
+
+    return res.status(200).json({
+      status: true,
+      data: formattedData
+    });
+  } catch (error) {
+    return next(apiError.internal(error.message, 'getAdminSalesGraph'));
+  }
+};
+
+export const getDashboardStats = async (req, res, next) => {
+  try {
+    const currentDate = new Date();
+    const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const lastWeek = new Date(currentDate.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    // Monthly orders and sales
+    const monthlyOrders = await Order.find({
+      createdAt: { $gte: firstDayOfMonth }
+    });
+
+    const monthlySales = monthlyOrders.reduce((acc, order) => acc + order.totalAmount, 0);
+
+    // User counts
+    const userCount = await UserModel.countDocuments({ role: 'user' });
+    const vendorCount = await UserModel.countDocuments({ role: 'vendors' });
+
+    // Pending orders
+    const pendingOrderCount = await Order.countDocuments({ status: 'pending' });
+
+    // Low stock products
+    const lowStockCount = await Post.countDocuments({ isLowStock: true });
+
+    // New reviews in last week
+    const newReviewsCount = await Post.aggregate([
+      { $unwind: '$comments' },
+      { 
+        $match: { 
+          'comments.createdAt': { $gte: lastWeek }
+        }
+      },
+      { $count: 'total' }
+    ]);
+
+    return res.status(200).json({
+      status: true,
+      data: {
+        monthlySales,
+        monthlyOrderCount: monthlyOrders.length,
+        activeVendors: vendorCount,
+        totalUsers: userCount,
+        pendingOrders: pendingOrderCount,
+        lowStockItems: lowStockCount,
+        newReviews: newReviewsCount[0]?.total || 0
+      }
+    });
+  } catch (error) {
+    return next(apiError.internal(error.message, 'getDashboardStats'));
+  }
+};
+
+export const getSalesGraph = async (req, res, next) => {
+  try {
+    const currentDate = new Date();
+    const sixMonthsAgo = new Date(currentDate.getFullYear(), currentDate.getMonth() - 5, 1);
+
+    const salesData = await Order.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: sixMonthsAgo },
+          status: { $in: ['confirmed', 'shipped', 'delivered'] }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' }
+          },
+          totalSales: { $sum: '$totalAmount' },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { '_id.year': 1, '_id.month': 1 }
+      }
+    ]);
+
+    // Format the data for the graph
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const formattedData = salesData.map(item => ({
+      month: monthNames[item._id.month - 1],
+      year: item._id.year,
+      sales: item.totalSales,
+      orders: item.count
+    }));
+
+    return res.status(200).json({
+      status: true,
+      data: formattedData
+    });
+  } catch (error) {
+    return next(apiError.internal(error.message, 'getSalesGraph'));
+  }
+};
+
+export const getProductReviews = async (req, res, next) => {
+  try {
+    const adminId = req.userId;
+    const {
+      page = 1,
+      limit = 10,
+      sort = 'newest',
+      rating,
+      startDate,
+      endDate,
+      productId
+    } = req.query;
+
+    // Base query
+    let query = { owner: adminId };
+    if (productId) {
+      query._id = productId;
+    }
+
+    // Date range filter for comments
+    const dateFilter = {};
+    if (startDate) {
+      dateFilter['$gte'] = new Date(startDate);
+    }
+    if (endDate) {
+      dateFilter['$lte'] = new Date(endDate);
+    }
+
+    // Get products with their reviews
+    const products = await Post.find(query)
+      .select('title comments rating totalRatings')
+      .populate({
+        path: 'comments.user',
+        select: 'username email'
+      });
+
+    // Process and filter reviews
+    let formattedReviews = products.map(product => {
+      let filteredComments = product.comments;
+      
+      // Apply date filters if any
+      if (Object.keys(dateFilter).length > 0) {
+        filteredComments = filteredComments.filter(comment => 
+          (!startDate || comment.createdAt >= new Date(startDate)) &&
+          (!endDate || comment.createdAt <= new Date(endDate))
+        );
+      }
+
+      // Apply rating filter if specified
+      if (rating) {
+        filteredComments = filteredComments.filter(comment => 
+          comment.rating === parseInt(rating)
+        );
+      }
+
+      // Sort comments
+      filteredComments.sort((a, b) => {
+        switch(sort) {
+          case 'oldest':
+            return a.createdAt - b.createdAt;
+          case 'highest':
+            return b.rating - a.rating;
+          case 'lowest':
+            return a.rating - b.rating;
+          case 'newest':
+          default:
+            return b.createdAt - a.createdAt;
+        }
+      });
+
+      return {
+        productId: product._id,
+        productTitle: product.title,
+        rating: product.rating,
+        totalRatings: product.totalRatings,
+        totalFilteredReviews: filteredComments.length,
+        reviews: filteredComments.map(comment => ({
+          user: comment.user,
+          rating: comment.rating,
+          comment: comment.comment,
+          createdAt: comment.createdAt
+        }))
+      };
+    });
+
+    // Filter out products with no matching reviews
+    formattedReviews = formattedReviews.filter(product => 
+      product.totalFilteredReviews > 0
+    );
+
+    // Apply pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = page * limit;
+    const total = formattedReviews.length;
+    const paginatedReviews = formattedReviews.slice(startIndex, endIndex);
+
+    return res.status(200).json({
+      status: true,
+      data: {
+        reviews: paginatedReviews,
+        pagination: {
+          total,
+          page: parseInt(page),
+          totalPages: Math.ceil(total / limit),
+          hasMore: endIndex < total
+        }
+      }
+    });
+  } catch (error) {
+    return next(apiError.internal(error.message, 'getProductReviews'));
+  }
+};
+
 export default {
   createItemController,
   getItemController,
@@ -347,5 +715,12 @@ export default {
   addCommentAndRating,
   getItemComments,
   getAllOrders,
-  updateOrderStatus
-}
+  updateOrderStatus,
+  getAdminProducts,
+  getLowStockProducts,
+  getAdminDashboardStats,
+  getAdminSalesGraph,
+  getDashboardStats,
+  getSalesGraph,
+  getProductReviews
+};
