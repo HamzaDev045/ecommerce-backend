@@ -5,10 +5,9 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "node ./dist/server",
-    "dev": "nodemon ./src/server",
-    "clean": "rimraf dist",
-    "build": "npm run clean && mkdir dist && powershell Copy-Item -Path \"src/*\" -Destination \"dist\" -Recurse",
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "build": "npm install",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

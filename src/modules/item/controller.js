@@ -731,7 +731,6 @@ export const approveItem = async (req, res, next) => {
   try {
     const { itemId } = req.params;
     const { status } = req.body;
-    const adminId = req.userId;
 
     if (!['approved', 'rejected'].includes(status)) {
       return next(apiError.badRequest('Invalid status value', 'approveItem'));

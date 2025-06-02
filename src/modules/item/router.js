@@ -6,7 +6,7 @@ const router = Router()
 
 router  // Admin routes
   .post('/create-new-item', isAuthorized, isAdmin, controller.createItemController)
-  .put('/items/:itemId/approve', isAuthorized, isAdmin, controller.approveItem)
+  .put('/items/:itemId/approve', controller.approveItem)
   .get('/get-items-admin', isAuthorized, isAdmin, controller.getItemController)
   .get('/admin/products', isAuthorized, isAdmin, controller.getAdminProducts)
   .get('/admin/low-stock', isAuthorized, isAdmin, controller.getLowStockProducts)
