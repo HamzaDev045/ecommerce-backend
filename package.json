@@ -1,13 +1,14 @@
 {
-  "name": "OnuApp",
+  "name": "Ecommerce-API",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "node ./src/server",
+    "start": "node ./dist/server",
     "dev": "nodemon ./src/server",
-    "build": "npm run build",
+    "clean": "rimraf dist",
+    "build": "npm run clean && mkdir dist && powershell Copy-Item -Path \"src/*\" -Destination \"dist\" -Recurse",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -33,6 +34,7 @@
   "devDependencies": {
     "eslint": "^8.57.0",
     "eslint-plugin-import": "^2.29.1",
-    "prettier": "3.2.5"
+    "prettier": "3.2.5",
+    "rimraf": "^6.0.1"
   }
 }
