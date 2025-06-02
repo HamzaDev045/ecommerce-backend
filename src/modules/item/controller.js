@@ -3,6 +3,7 @@ import { MESSEGES } from '../../constants/index.js';
 import { UserModel } from "../users/model.js";
 import { Post } from "./modal.js";
 import { Order } from "./orderModel.js";
+import { Notification } from "./notificationModel.js";
 import { apiError } from "../../utils/apiErrorHandler.js";
 import { getUserByConditions } from "../users/services.js";
 
@@ -44,9 +45,25 @@ export const createItemController = async (req, res, next) => {
       brand,
       images: uploadedImages,
       lowStockThreshold: lowStockThreshold || 10,
-      isLowStock: req.body.quantity <= (lowStockThreshold || 10)
+      isLowStock: req.body.quantity <= (lowStockThreshold || 10),
+      status: 'pending' // Set initial status as pending
     });user.posts.push(post._id);
     await user.save();
+
+    // Create notification for warehouse admin
+    await Notification.create({
+      type: 'new_item',
+      message: 'New item awaiting approval',
+      details: {
+        itemTitle: post.title,
+        itemId: post._id,
+        brand: post.brand,
+        category: post.category,
+        quantity: post.quantity
+      },
+      user: user._id,
+      item: post._id
+    });
 
     // Emit socket event for warehouse notification
     const io = req.app.get('io');
@@ -56,7 +73,8 @@ export const createItemController = async (req, res, next) => {
         title: post.title,
         quantity: post.quantity,
         category: post.category,
-        addedBy: user.username
+        addedBy: user.username,
+        status: 'pending'
       }
     });
 
@@ -81,11 +99,9 @@ export const getItemController = async (req, res) => {
         status: false,
         message: 'Only admin users can access this endpoint'
       });
-    }
-
-    const items = await Post.find()
-      .populate('owner', 'username email') // Changed from user to owner since that's the field name in schema
-      .select('image title quantity owner');
+    }    const items = await Post.find({ status: 'approved' })
+      .populate('owner', 'username email')
+      .select('images title quantity owner status');
 
 
     //   console.log(items, 'items')
@@ -94,10 +110,13 @@ export const getItemController = async (req, res) => {
       const itemOwner = await getUserByConditions({ _id: item.owner });
       if (itemOwner.role === 'admin') {
         return {
-          image: item.image,
+          images: item.images,
           title: item.title,
           quantity: item.quantity,
-          adminName: itemOwner.username
+          adminName: itemOwner.username,
+          status: item.status,
+          adminEmail: item.owner.email,
+
         };
       }
       return null;
@@ -514,7 +533,7 @@ export const getDashboardStats = async (req, res, next) => {
 
     // User counts
     const userCount = await UserModel.countDocuments({ role: 'user' });
-    const vendorCount = await UserModel.countDocuments({ role: 'vendors' });
+    const vendorCount = await UserModel.countDocuments({ role: 'admin' });
 
     // Pending orders
     const pendingOrderCount = await Order.countDocuments({ status: 'pending' });
@@ -708,6 +727,218 @@ export const getProductReviews = async (req, res, next) => {
   }
 };
 
+export const approveItem = async (req, res, next) => {
+  try {
+    const { itemId } = req.params;
+    const { status } = req.body;
+    const adminId = req.userId;
+
+    if (!['approved', 'rejected'].includes(status)) {
+      return next(apiError.badRequest('Invalid status value', 'approveItem'));
+    }
+
+    const item = await Post.findById(itemId);
+    if (!item) {
+      return next(apiError.badRequest('Item not found', 'approveItem'));
+    }
+
+    if (item.status === status) {
+      return next(apiError.badRequest(`Item is already ${status}`, 'approveItem'));
+    }
+
+    // Update item status
+    item.status = status;
+    await item.save();
+
+    // Create notification for item owner
+    // await Notification.create({
+    //   type: 'approval',
+    //   message: `Your item ${item.title} has been ${status}${reason ? ': ' + reason : ''}`,
+    //   details: {
+    //     itemTitle: item.title,
+    //     status,
+    //     reason: reason || null,
+    //     processedBy: adminId,
+    //     processedAt: new Date()
+    //   },
+    //   user: item.owner,
+    //   item: item._id
+    // });
+
+    // // Send socket notification
+    // const io = req.app.get('io');
+    // io.emit('itemApproval', {
+    //   itemId: item._id,
+    //   status,
+    //   title: item.title,
+    //   message: `Item ${item.title} has been ${status}`,
+    //   reason: reason || null
+    // });
+
+    return res.status(200).json({
+      status: true,
+      message: `Item ${status} successfully`,
+      data: {
+        ...item.toObject(),
+        notificationSent: true
+      }
+    });
+  } catch (error) {
+    console.log(error);
+    return next(apiError.internal(error.message, 'approveItem'));
+  }
+};
+
+export const getAllApprovedProducts = async (req, res, next) => {
+  try {
+    const { category, brand, minPrice, maxPrice, sort = 'newest' } = req.query;
+
+    // Build query
+    let query = { status: 'approved' };
+    
+    // Add filters if provided
+    if (category) query.category = category;
+    if (brand) query.brand = brand;
+    if (minPrice || maxPrice) {
+      query.price = {};
+      if (minPrice) query.price.$gte = Number(minPrice);
+      if (maxPrice) query.price.$lte = Number(maxPrice);
+    }
+
+    // Create sort options
+    let sortOptions = {};
+    switch (sort) {
+      case 'price-low':
+        sortOptions.price = 1;
+        break;
+      case 'price-high':
+        sortOptions.price = -1;
+        break;
+      case 'rating':
+        sortOptions.rating = -1;
+        break;
+      default:
+        sortOptions.createdAt = -1; // newest first
+    }
+
+    const products = await Post.find(query)
+      .sort(sortOptions)
+      .populate('owner', 'username')
+      .select('-__v');
+
+    return res.status(200).json({
+      status: true,
+      message: 'Products retrieved successfully',
+      data: {
+        products,
+        total: products.length,
+        filters: {
+          category: category || 'all',
+          brand: brand || 'all',
+          priceRange: {
+            min: minPrice || 'any',
+            max: maxPrice || 'any'
+          }
+        }
+      }
+    });
+
+  } catch (error) {
+    console.log(error);
+    return next(apiError.internal(error.message, 'getAllApprovedProducts'));
+  }
+};
+
+export const getNotifications = async (req, res, next) => {
+  try {
+    const userId = req.userId;
+    const user = await getUserByConditions({ _id: userId });
+    const { page = 1, limit = 10, read, type } = req.query;
+    const skip = (page - 1) * limit;
+
+    // Build query
+    let query = {};
+    
+    // If not admin, only show user's notifications
+    if (user.role !== 'admin') {
+      query.user = userId;
+    }
+
+    // Filter by read status if specified
+    if (read !== undefined) {
+      query.isRead = read === 'true';
+    }
+
+    // Filter by notification type if specified
+    if (type) {
+      query.type = type;
+    }
+
+    // Get notifications with pagination
+    const notifications = await Notification.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(Number(limit))
+      .populate('item', 'title images')
+      .populate('user', 'username email');
+
+    // Get total count for pagination
+    const total = await Notification.countDocuments(query);
+
+    return res.status(200).json({
+      status: true,
+      data: {
+        notifications,
+        pagination: {
+          currentPage: Number(page),
+          totalPages: Math.ceil(total / limit),
+          totalNotifications: total,
+          hasMore: skip + notifications.length < total
+        }
+      }
+    });
+
+  } catch (error) {
+    console.log(error);
+    return next(apiError.internal(error.message, 'getNotifications'));
+  }
+};
+
+// Mark notifications as read
+export const markNotificationsAsRead = async (req, res, next) => {
+  try {
+    const userId = req.userId;
+    const { notificationIds } = req.body;
+    const user = await getUserByConditions({ _id: userId });
+
+    let query = {
+      _id: { $in: notificationIds }
+    };
+
+    // If not admin, only allow marking own notifications
+    if (user.role !== 'admin') {
+      query.user = userId;
+    }
+
+    const result = await Notification.updateMany(
+      query,
+      { $set: { isRead: true } }
+    );
+
+    return res.status(200).json({
+      status: true,
+      message: 'Notifications marked as read',
+      data: {
+        modifiedCount: result.modifiedCount
+      }
+    });
+
+  } catch (error) {
+    console.log(error);
+    return next(apiError.internal(error.message, 'markNotificationsAsRead'));
+  }
+};
+
 export default {
   createItemController,
   getItemController,
@@ -722,5 +953,9 @@ export default {
   getAdminSalesGraph,
   getDashboardStats,
   getSalesGraph,
-  getProductReviews
+  getProductReviews,
+  approveItem,
+  getAllApprovedProducts,
+  getNotifications,
+  markNotificationsAsRead
 };

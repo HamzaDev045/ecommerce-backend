@@ -36,7 +36,11 @@ const postSchema = mongoose.Schema(
       type: Boolean,
       default: false,
     },
-
+    status: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending'
+    },
     category: {
       type: String,
       required: true,
