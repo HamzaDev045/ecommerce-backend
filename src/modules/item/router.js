@@ -7,7 +7,7 @@ const router = Router()
 router  // Admin routes
   .post('/create-new-item', isAuthorized, isAdmin, controller.createItemController)
   .put('/items/:itemId/approve', controller.approveItem)
-  .get('/get-items-admin', isAuthorized, isAdmin, controller.getItemController)
+  .get('/get-items-waarehouse', controller.getItemController)
   .get('/admin/products', isAuthorized, isAdmin, controller.getAdminProducts)
   .get('/admin/low-stock', isAuthorized, isAdmin, controller.getLowStockProducts)
   .get('/admin/reviews', isAuthorized, isAdmin, controller.getProductReviews)
@@ -21,7 +21,7 @@ router  // Admin routes
   .post('/comment', isAuthorized, controller.addCommentAndRating)
   .get('/comments/:itemId', isAuthorized, controller.getItemComments)
   // Notification routes
-  .get('/notifications', isAuthorized, controller.getNotifications)
+  .get('/notifications',  controller.getNotifications)
   .put('/notifications/mark-read', isAuthorized, controller.markNotificationsAsRead)
 
 export default router

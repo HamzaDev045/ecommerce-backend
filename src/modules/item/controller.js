@@ -89,17 +89,7 @@ export const createItemController = async (req, res, next) => {
 
 export const getItemController = async (req, res) => {
   try {
-    const email = req?.user?.email;
-
-    const user = await getUserByConditions({ email });
-
-
-    if (!user && user.role !== 'admin') {
-      return res.status(403).json({
-        status: false,
-        message: 'Only admin users can access this endpoint'
-      });
-    }    const items = await Post.find({ status: 'approved' })
+      const items = await Post.find({ status: 'approved' })
       .populate('owner', 'username email')
       .select('images title quantity owner status');
 
@@ -850,50 +840,20 @@ export const getAllApprovedProducts = async (req, res, next) => {
 
 export const getNotifications = async (req, res, next) => {
   try {
-    const userId = req.userId;
-    const user = await getUserByConditions({ _id: userId });
-    const { page = 1, limit = 10, read, type } = req.query;
-    const skip = (page - 1) * limit;
-
-    // Build query
-    let query = {};
-    
-    // If not admin, only show user's notifications
-    if (user.role !== 'admin') {
-      query.user = userId;
-    }
-
-    // Filter by read status if specified
-    if (read !== undefined) {
-      query.isRead = read === 'true';
-    }
-
-    // Filter by notification type if specified
-    if (type) {
-      query.type = type;
-    }
+  
 
     // Get notifications with pagination
-    const notifications = await Notification.find(query)
+    const notifications = await Notification.find()
       .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(Number(limit))
       .populate('item', 'title images')
       .populate('user', 'username email');
 
-    // Get total count for pagination
-    const total = await Notification.countDocuments(query);
 
     return res.status(200).json({
       status: true,
       data: {
         notifications,
-        pagination: {
-          currentPage: Number(page),
-          totalPages: Math.ceil(total / limit),
-          totalNotifications: total,
-          hasMore: skip + notifications.length < total
-        }
+
       }
     });
 
